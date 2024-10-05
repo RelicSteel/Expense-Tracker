@@ -1,0 +1,14 @@
+[
+    {
+        "description": "KFC",
+        "amount": 12.99,
+        "category": "Food",
+        "date": "2024-10-04"
+    },
+    {
+        "description": "Bus Pass",
+        "amount": 25.99,
+        "category": "Transport",
+        "date": "2024-10-04"
+    }
+]
