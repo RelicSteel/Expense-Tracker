@@ -1,9 +1,7 @@
 import sys
 import json
 import os
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                             QListWidget, QMessageBox, QComboBox, QFileDialog, QScrollArea, QDateEdit, QDialog,
-                             QGridLayout, QInputDialog, QCalendarWidget)
+from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QMessageBox, QComboBox, QFileDialog, QScrollArea, QDateEdit, QDialog, QGridLayout, QInputDialog, QCalendarWidget, QDialogButtonBox)
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtCore import QDate, Qt
 import pandas as pd
@@ -132,6 +130,53 @@ class UserManager:
 
     def authenticate(self, username: str, password: str) -> bool:
         return self.users.get(username) == password
+
+class EditExpenseDialog(QDialog):
+    def __init__(self, expense: Expense, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Edit Expense')
+        self.expense = expense
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        
+        # Input fields pre-filled with current expense details
+        self.description_input = QLineEdit(self.expense.description)
+        self.amount_input = QLineEdit(str(self.expense.amount))
+        self.amount_input.setValidator(QDoubleValidator(0.0, 99999.99, 2))  # Ensure only valid float values
+        self.category_input = QLineEdit(self.expense.category)
+        self.date_input = QDateEdit(self.expense.date)
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("yyyy-MM-dd")
+
+        # Add labels and inputs to the layout
+        layout.addWidget(QLabel("Description:"))
+        layout.addWidget(self.description_input)
+        layout.addWidget(QLabel("Amount:"))
+        layout.addWidget(self.amount_input)
+        layout.addWidget(QLabel("Category:"))
+        layout.addWidget(self.category_input)
+        layout.addWidget(QLabel("Date:"))
+        layout.addWidget(self.date_input)
+
+        # Add OK and Cancel buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.setLayout(layout)
+
+    def get_updated_expense(self) -> Expense:
+        """
+        Get the updated expense details from the dialog fields.
+        """
+        description = self.description_input.text()
+        amount = float(self.amount_input.text()) if self.amount_input.text() else 0.0
+        category = self.category_input.text()
+        date = self.date_input.date().toPyDate()
+        return Expense(description, amount, category, date)
 
 class LoginDialog(QDialog):
     def __init__(self, user_manager):
@@ -311,6 +356,21 @@ class ExpenseTrackerApp(QWidget):
         index = self.expense_list.currentRow()
         expense = self.tracker.expenses[index]
 
+        #Open the edit expense dialog and pass the selected expense
+        dialog = EditExpenseDialog(expense, self)
+        if dialog.exec_() == QDialog.Accepted:
+            #get updated expense details and update the expense in the tracker
+            updated_expense = dialog.get_updated_expense()
+            self.tracker.edit_expense(index, updated_expense.description, updated_expense.amount, updated_expense.category, updated_expense.date)
+
+            #update UI to reflect changes
+            self.expense_list.takeItem(index)
+            self.expense_list.insertItem(index, str(updated_expense))
+            self.expense_list.setCurrentRow(index)
+            QMessageBox.information(self, 'Edit Successful', 'Expense details updated successfully')
+        else:
+            QMessageBox.information(self, 'Edit Canceled', 'No changes were made to the expense')
+
         self.desc_input.setText(expense.description)
         self.amount_input.setText(str(expense.amount))
         self.category_input.setCurrentText(expense.category)
@@ -334,8 +394,7 @@ class ExpenseTrackerApp(QWidget):
             return
 
         index = self.expense_list.currentRow()
-        reply = QMessageBox.question(self, 'Delete Expense', 'Are you sure you want to delete this expense?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Delete Expense', 'Are you sure you want to delete this expense?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             self.tracker.delete_expense(index)
@@ -391,8 +450,7 @@ class ExpenseTrackerApp(QWidget):
         QMessageBox.information(self, f"{report_type.capitalize()} Report", message)
 
     def get_expense_details(self):
-        return QMessageBox.Yes == QMessageBox.question(self, 'Confirm Edit', 'Are you sure you want to edit this expense?',
-                                                       QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        return QMessageBox.Yes == QMessageBox.question(self, 'Confirm Edit', 'Are you sure you want to edit this expense?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
     def closeEvent(self, event):
         self.save_expenses()

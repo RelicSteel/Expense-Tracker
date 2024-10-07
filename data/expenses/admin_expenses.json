@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "description": "KFC",
+        "amount": 100.0,
+        "category": "Food",
+        "date": "2024-10-07"
+    },
+    {
+        "description": "MTG",
+        "amount": 18.99,
+        "category": "Other",
+        "date": "2024-10-07"
+    }
+]
